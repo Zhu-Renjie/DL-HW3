@@ -7,7 +7,7 @@ import numpy as np
 from numpy import array, argmax
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
-def data_prepro(folder=None, root=None):
+def data_preprocess(folder=None, root=None):
     if root is not None:
         path = root
 
@@ -91,12 +91,12 @@ def label_generator(path=None):
     # inverted = label_encoder.inverse_transform([argmax(onehot_encoded[0, :])])
     # print(inverted)
     
-    return X, y, onehot_encoded
+    return np.asarray(X), np.asarray(y), onehot_encoded
 
 
 if __name__ == "__main__":
     ## prepose training set and testing set
-    # data_prepro(root="test")
-    # data_prepro(root="train")
+    # data_preprocess(root="test")
+    # data_preprocess(root="train")
     X, y, onehot_encoded = label_generator("prepro_test")
     # X, y, classes = label_generator("prepro_train")
