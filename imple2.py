@@ -7,39 +7,54 @@ import os
 
 
 class CNN():
-    def __init__(self):
+    def __init__(self, batchsize=64, epochs=10, learning_rate=1e-4,
+                dropout_rate=0.5, shuffle=True, random_seed=None):
+        
+        np.random.seed(random_seed)
+        self.batchsize = batchsize
+        self.epochs= epochs
+        self.learning_rate = learning_rate
+        self.dropout_rate = dropout_rate
+        self.shuffle = shuffle
+
         g = tf.Graph()
         with g.as_default():
-            x = tf.placeholder(tf.float32, shape=[None, 28, 28, 1])
-            # self.conv_layer(x, name='convtest', kernel_size=(3,3), n_output_channels=32)
-            self.fc_layer(x, name='fctest', n_output_units=32, activation_fn=tf.nn.relu)
+            tf.set_random_seed(random_seed)
+            self.build_cnn()
+            self.init_op = tf.global_variables_initializer()
+            self.saver = tf.train.Saver()
+        self.sess = tf.Session(graph=g)
 
-        del g, x
+    def build_cnn(self):
+        # tf_x = tf.placeholder(tf.float32, shape=[None, 784], name='tf_x')
+        tf_x = tf.placeholder(tf.float32, shape=[None, 128, 128], name='tf_x')/255
+        tf_y = tf.placeholder(tf.int32, shape=[None, 101], name='tf_y')
+        is_train = tf.placeholder(tf.bool, shape=(), name='is_train')
 
-    def build_cnn():
-        tf_x = tf.placeholder(tf.float32, shape=[None, 784], name='tf_x')
-        tf_y = tf.placeholder(tf.int32, shape=[None], name='tf_y')
+        # tf_x_image = tf.reshape(tf_x, shape=[-1, 28, 28, 1], name='tf_x_reshape')
+        tf_x_image = tf.reshape(tf_x, shape=[-1, 128, 128, 1], name='tf_x_reshape')
+        # tf_y_onehot = tf.one_hot(indices=tf_y, depth=10, dtype=tf.float32, name='tf_y_onehot')
+        tf_y_onehot = tf_y
 
-        tf_x_image = tf.reshape(tf.x, shape=[-1, 28, 28, 1], name='tf_x_reshape')
-        tf_y_onehot = tf.one_hot(indices=tf_y, depth=10, dtype=tf.float32, name='tf_y_onehot')
         print('\nBuild 1st layer')
-        h1 = self.conv_layer(tf.tf_x_image, name='conv_1', kernel_size=(5,5), 
-                            padding_mode='VALID', n_output_channels=32)
-        h1_pool = tf.nn.max_pool(h1, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+        h1 = self.conv_layer(tf_x_image, name='conv_1', kernel_size=(5,5), 
+                            padding_mode='SAME', n_output_channels=32)
+        h1_pool = tf.nn.max_pool(h1, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
 
         print('\nBuild 2nd layer')
-        h2 = self.conv_layer(h1_pool, name='conv_2', kernel_size=(5,5), padding_mode='VALID',
+        h2 = self.conv_layer(h1_pool, name='conv_2', kernel_size=(5,5), padding_mode='SAME',
                             n_output_channels=64)
-        h2_pool = tf.nn.max_pool(h2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+        h2_pool = tf.nn.max_pool(h2, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
 
         print('\nBuild 3rd layer')
         h3 = self.fc_layer(h2_pool, name='fc_3', n_output_units=1024,
                          activation_fn=tf.nn.relu)
-        keep_prob = tf.placeholder(tf.float32, name='fc_keep_prob')
-        h3_drop = tf.nn.dropout(h3, keep_prob=keep_prob, name='dropout_layer')
+        # keep_prob = tf.placeholder(tf.float32, name='fc_keep_prob')
+        # h3_drop = tf.nn.dropout(h3, keep_prob=keep_prob, name='dropout_layer')
+        h3_drop = tf.nn.dropout(h3, keep_prob=1-self.dropout_rate, name='dropout_layer')
 
         print('\nBuild 4th layer')
-        h4 = self.fc_layer(h3_drop, name='fc_4', n_output_units=10, activation_fn=None)
+        h4 = self.fc_layer(h3_drop, name='fc_4', n_output_units=101, activation_fn=None)
 
         predictions = {
             'probabilities' : tf.nn.softmax(h4, name='probabilities'),
@@ -49,16 +64,19 @@ class CNN():
         cross_entropy_loss = tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits(
                 logits=h4, labels=tf_y_onehot
-            )
+            ),
+            name = 'cross_entropy_loss'
         )
 
-        learning_rate = 1e-4
-        optimizer = tf.train.AdamOptimizer(learning_rate)
+        
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
         optimizer = optimizer.minimize(cross_entropy_loss, name='train_op')
 
         correct_predictions = tf.equal(
-            predictions=['labels'],
-            tf_y, name='correct_preds'
+            predictions['labels'],
+            # tf_y,
+            tf.cast(tf.argmax(tf_y, axis=1), tf.int32),
+            name='correct_preds'
         )
 
         accuracy = tf.reduce_mean(
@@ -66,57 +84,74 @@ class CNN():
             name='accuracy'
         )
 
-    def save(self, saver, sess, epoch, path='model/'):
+    def save(self, epoch, path='model/'):
         if not os.path.isdir(path):
             os.makedirs(path)
 
         print('Saving model in {}'.format(path))
-        saver.save(sess, os.path.join(path, 'cnn-model.ckpt'), global_step=epoch)
+        self.saver.save(
+            self.sess, 
+            os.path.join(path, 'cnn-model.ckpt'), 
+            global_step=epoch
+        )
 
-    def load(self, saver, sess, path, epoch):
+    def load(self, path, epoch):
         print('Loading model from {}'.format(path))
-        saver.restore(sess, os.path.join(path, 'cnn-model.ckpt-{}'.format(epoch)))
+        self.saver.restore(self.sess,
+            os.path.join(path, 'cnn-model.ckpt-{}'.format(epoch)))
 
 
-    def train(self, sess, training_set, validation_set=None, initialize=True, epochs=20, shuffle=True,
-            dropout=0.5, random_seed=None):
+    def train(self, training_set, validation_set=None, initialize=True):
+            if initialize:
+                self.sess.run(self.init_op)
             
             X_data = np.array(training_set[0])
             y_data = np.array(training_set[1])
-            training_loss= []
+            self.training_cost= []
 
-            if initialize:
-                sess.run(tf.global_variables_initializer())
-
-            np.random.seed(random_seed)
-            for epoch in range(1, epochs+1):
-                batch_gen = batch_generator(X_data, y_data, shuffle=shuffle)
+            for epoch in range(1, self.epochs+1):
+                batch_gen = batch_generator(X_data, y_data, shuffle=self.shuffle)
             
-            avg_loss = 0.0
-            for i, (batch_x, batch_y) in enumerate(batch_gen):
-                feed = {
-                    'tf_x:0' : batch_x,
-                    'tf_y_0' : batch_y,
-                    'fc_keep_prob:0' : dropout
-                }
-                loss, _ = sess.run(
-                    ['cross_entropy_loss:0', 'train_op'],
-                    feed_dict = feed
-                )
-                avg_loss += loss
-            training_loss.append(avg_loss / (i+1))
-            print("Epoch {} Training Avg. Loss: {}".format(epoch, avg_loss), end=' ')
+                avg_loss = 0.0
+                for i, (batch_x, batch_y) in enumerate(batch_gen):
+                    feed = {
+                        'tf_x:0' : batch_x,
+                        'tf_y:0' : batch_y,
+                        'is_train:0' : True
+                    }
+                    loss, _ = self.sess.run(
+                        ['cross_entropy_loss:0', 'train_op'],
+                        feed_dict = feed
+                    )
+                    avg_loss += loss
+                self.training_cost.append(avg_loss / (i+1))
+                print("Epoch {} Training Avg. Loss: {}".format(epoch, avg_loss), end=' ')
 
-            if validation_set is not None:
-                feed = {
-                    'tf_x:0' : validation_set[0],
-                    'tf_y:0' : validation_set[1],
-                    'fc_keep_prob:0' : 1.0
-                }
-                valid_acc = sess.run('accuracy:0', feed_dict=feed)
-                print(" Validation Acc: {}".format(valid_acc))
-            else:
-                print()
+                if validation_set is not None:
+                    X_test = validation_set[0]
+                    y_test = validation_set[1]
+                    batch_gen = batch_generator(X_test, y_test, shuffle=False)
+                    for i, (batch_x, batch_y) in enumerate(batch_gen):
+                        feed = {
+                            'tf_x:0' : batch_x,
+                            'tf_y:0' : batch_y,
+                            'is_train:0' : False
+                        }
+                        valid_acc = self.sess.run('accuracy:0', feed_dict=feed)
+                        print(" Validation Acc: {}".format(valid_acc))
+                else:
+                    print()
+
+    def predict(self, X_test, return_proba=False):
+        feed = {
+            'tf_x:0' : X_test,
+            'is_train:0' : False
+        }
+
+        if return_proba:
+            return self.sess.run('probabilities:0', feed_dict=feed)
+        else:
+            return self.sess.run('labels:0',feed_dict=feed)
 
     def conv_layer(self, input_tensor, name, kernel_size, n_output_channels, padding_mode='SAME', strides=(1,1,1,1)):
         with tf.variable_scope(name):
@@ -164,17 +199,32 @@ class CNN():
             print(layer)
             return layer
     
-def next_batch(batch_size, data, labels):
-    idx = np.arange(0 , len(data))
-    np.random.shuffle(idx)
-    idx = idx[:batch_size]
-    data_shuffle = [data[i] for i in idx]
-    labels_shuffle = [labels[ i] for i in idx]
+def batch_generator(X, y, batch_size=64, shuffle=False, random_seed=None):
+    idx = np.arange(y.shape[0])
 
-    return np.asarray(data_shuffle), np.asarray(labels_shuffle)
+    if shuffle:
+        rng = np.random.RandomState(random_seed)
+        rng.shuffle(idx)
+        X = X[idx]
+        y = y[idx]
+    
+    for i in range(0, X.shape[0], batch_size):
+        yield (X[i:i+batch_size, :], y[i:i+batch_size, :])
+
         
 if __name__ == "__main__":
-    # X_train, name_train, y_train = label_generator("prepro_train")
-    # X_test, name_test, y_test = label_generator("prepro_test") # narray
-    cnn = CNN()
+    X_train, name_train, y_train = label_generator("prepro_train")
+    X_test, name_test, y_test = label_generator("prepro_test") # narray
+    
+    epochs = 20
+    cnn = CNN(random_seed=123, 
+            batchsize=64, 
+            epochs=epochs
+            )
+    cnn.train(training_set=(X_train, y_train),
+            validation_set=(X_test, y_test)
+            )
+    cnn.save(epoch=epochs)
+    # K = batch_generator(X_test, y_test, batch_size=5)
+    # X_batch, y_batch = next(K)
     pass
