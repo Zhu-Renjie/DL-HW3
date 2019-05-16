@@ -24,7 +24,7 @@ def data_preprocess(folder=None, root=None):
         if isfile(fullpath):
             # print("file：", f)
             face = misc.imread(fullpath,'L')
-            size = 256
+            size = 128
             face = misc.imresize(face, (size,size))
             # print(face.shape, face.dtype)
             if len(face.shape) == 3:
@@ -76,18 +76,14 @@ def label_generator(path=None):
 
     values = array(y)
     
-    # integer encode
-    label_encoder = LabelEncoder()
-    integer_encoded = label_encoder.fit_transform(values)
-    # print(integer_encoded)
-
+    # Obj: One-hot encoding
+    # https://machinelearningmastery.com/how-to-one-hot-encode-sequence-data-in-python/
     # binary encode
-    onehot_encoder = OneHotEncoder(sparse=False)
-    integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
-    onehot_encoded = onehot_encoder.fit_transform(integer_encoded)
+    values = values.reshape(len(values), 1)
+    onehot_encoded = OneHotEncoder(categories='auto',sparse=False).fit_transform(values)
     # print(onehot_encoded)
     
-    # invert first example
+    # invert the one-hot to label
     # inverted = label_encoder.inverse_transform([argmax(onehot_encoded[0, :])])
     # print(inverted)
     
