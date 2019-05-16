@@ -104,13 +104,14 @@ class CNN():
         #     all_tensors=False
         # )
 
+        # Obj: Extract weights
+        # http://landcareweb.com/questions/24034/ru-he-cha-zhao-jian-cha-dian-zhong-bao-cun-de-bian-liang-ming-cheng-he-zhi
         from tensorflow.python import pywrap_tensorflow
-
         checkpoint_path = os.path.join(path, 'cnn-model.ckpt-{}'.format(epoch))
-        reader = pywrap_tensorflow.NewCheckpointReader(checkpoint_path)
-        var_to_shape_map = reader.get_variable_to_shape_map()
-        for key in var_to_shape_map:
-            print("tensor_name: ", key)
+        self.reader = pywrap_tensorflow.NewCheckpointReader(checkpoint_path)
+        self.var_to_shape_map = self.reader.get_variable_to_shape_map()
+        # for key in self.var_to_shape_map:
+            # print("tensor_name: ", key)
             # print(reader.get_tensor(key))
 
 
@@ -257,9 +258,50 @@ if __name__ == "__main__":
     #         initialize=True
     #         )
     # cnn.save(epoch=epochs)
-    
-    plot = False
-    if plot:
+
+
+    plot_weights = False
+    if plot_weights:
+        # Obj: Plot weights in probability distribution
+        # https://stackoverflow.com/questions/5498008/pylab-histdata-normed-1-normalization-seems-to-work-incorrect
+        # print(type(conv1), conv1.shape)
+        # -> <class 'numpy.ndarray'> (5, 5, 1, 32)
+        conv1 = cnn.reader.get_tensor('conv_1/_weights').flatten()
+        conv2 = cnn.reader.get_tensor('conv_2/_weights').flatten()
+        dense = cnn.reader.get_tensor('fc_3/_weights').flatten()
+        output = cnn.reader.get_tensor('fc_4/_weights').flatten()
+        bins = 100
+
+        plt.subplot(2,2,1)
+        plt.title('Histogram of conv1')
+        plt.xlabel('Value')
+        plt.ylabel('Probability')
+        conv1_hist_weights = np.ones_like(conv1)/float(len(conv1))
+        plt.hist(conv1, bins=bins, weights=conv1_hist_weights)
+
+        plt.subplot(2,2,2)
+        plt.title('Histogram of conv2')
+        plt.xlabel('Value')
+        plt.ylabel('Probability')
+        conv2_hist_weights = np.ones_like(conv2)/float(len(conv2))
+        plt.hist(conv2, bins=bins, weights=conv2_hist_weights)
+        
+        plt.subplot(2,2,3)
+        plt.title('Histogram of dense1')
+        plt.xlabel('Value')
+        plt.ylabel('Probability')
+        dense_hist_weights = np.ones_like(dense)/float(len(dense))
+        plt.hist(dense, bins=bins, weights=dense_hist_weights)
+        
+        plt.subplot(2,2,4)
+        plt.title('Histogram of output')
+        plt.xlabel('Value')
+        plt.ylabel('Probability')
+        output_hist_weights = np.ones_like(output)/float(len(output))
+        plt.hist(output, bins=bins, weights=output_hist_weights)
+
+    plot_metric = False
+    if plot_metric:
         plt.subplot(2,1,1)
         plt.plot(range(1,epochs+1), cnn.training_loss, label='training loss')
         plt.plot(range(1,epochs+1), cnn.testing_loss, label='testing loss')
@@ -276,3 +318,4 @@ if __name__ == "__main__":
         plt.title('Accuracy')
         plt.legend()
     del cnn
+
