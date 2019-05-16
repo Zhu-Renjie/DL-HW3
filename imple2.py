@@ -9,7 +9,7 @@ from data_prepro import data_preprocess, label_generator
 
 class CNN():
     def __init__(self, batchsize=64, epochs=10, learning_rate=1e-4,
-                dropout_rate=0.5, shuffle=True, random_seed=None):
+                dropout_rate=0.5, shuffle=True, random_seed=None, regularization=False):
         
         np.random.seed(random_seed)
         self.batchsize = batchsize
@@ -21,6 +21,7 @@ class CNN():
         self.training_accuracy = []
         self.testing_loss = []
         self.testing_accuracy = []
+        self.regularization = regularization
 
         g = tf.Graph()
         with g.as_default():
@@ -65,6 +66,22 @@ class CNN():
             ),
             name = 'cross_entropy_loss'
         )
+        if self.regularization:
+            regularizer = tf.contrib.layers.l2_regularizer(scale=0.01)
+            # reg_variables = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+            # reg_variables = tf.get_collection(
+            #     tf.GraphKeys.GLOBAL_VARIABLES, 
+            #     scope='conv_1/_weights'
+            # )
+            reg_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+            reg_term = tf.contrib.layers.apply_regularization(regularizer, reg_variables)
+            cross_entropy_loss += reg_term
+
+            # Obj: Regularization
+            # https://www.itread01.com/content/1550615421.html
+            # reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+            # reg_constant = 0.5  # Choose an appropriate one.
+            # cross_entropy_loss = cross_entropy_loss + reg_constant * sum(reg_losses)
 
 
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
@@ -149,7 +166,7 @@ class CNN():
                 self.training_accuracy.append(avg_acc / (i+1))
                 print("="*50)
                 print("Epoch {} Training Avg. Loss: {}".format(epoch, avg_loss / (i+1)))
-                print("Epoch {} Training Avg. Acc: {}".format(epoch, avg_acc / (i+1)))
+                print("Epoch {} Training Avg. Acc : {}".format(epoch, avg_acc / (i+1)))
 
                 if validation_set is not None:
                     X_test = validation_set[0]
@@ -177,8 +194,8 @@ class CNN():
                     
                     self.testing_loss.append(avg_loss/6)
                     self.testing_accuracy.append(avg_acc/6)
-                    print(" Validation Loss: {}".format(avg_loss/6))
-                    print(" Validation Acc: {}".format(avg_acc/6))
+                    print("           Validation Loss : {}".format(avg_loss/6))
+                    print("           Validation Acc  : {}".format(avg_acc/6))
                 else:
                     print()
 
@@ -250,15 +267,17 @@ if __name__ == "__main__":
     epochs = 20
     cnn = CNN(random_seed=123, 
             batchsize=64, 
-            epochs=epochs
+            epochs=epochs,
+            regularization=True
             )
-    cnn.load(epoch=20, path='model/')
 
-    # cnn.train(training_set=(X_train, y_train),
-    #         validation_set=(X_test, y_test),
-    #         initialize=True
-    #         )
-    # cnn.save(epoch=epochs)
+    cnn.train(training_set=(X_train, y_train),
+            validation_set=(X_test, y_test),
+            initialize=True
+            )
+    cnn.save(epoch=epochs)
+
+    cnn.load(epoch=epochs, path='model/')
 
     plot_metric = False
     if plot_metric:
@@ -278,7 +297,7 @@ if __name__ == "__main__":
         plt.title('Accuracy')
         plt.legend()
 
-    plot_weights = False
+    plot_weights = True
     if plot_weights:
         # Obj: Plot weights in probability distribution
         # https://stackoverflow.com/questions/5498008/pylab-histdata-normed-1-normalization-seems-to-work-incorrect
@@ -318,7 +337,7 @@ if __name__ == "__main__":
         output_hist_weights = np.ones_like(output)/float(len(output))
         plt.hist(output, bins=bins, weights=output_hist_weights)
 
-    plot_convolved = True
+    plot_convolved = False
     if plot_convolved:
         
         from scipy import misc
