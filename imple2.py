@@ -1,9 +1,10 @@
 
-import numpy as np
-import matplotlib.pyplot as plt
-import tensorflow as tf
-from data_prepro import data_preprocess, label_generator
 import os
+import numpy as np
+import tensorflow as tf
+from scipy import ndimage
+import matplotlib.pyplot as plt
+from data_prepro import data_preprocess, label_generator
 
 
 class CNN():
@@ -259,6 +260,23 @@ if __name__ == "__main__":
     #         )
     # cnn.save(epoch=epochs)
 
+    plot_metric = False
+    if plot_metric:
+        plt.subplot(2,1,1)
+        plt.plot(range(1,epochs+1), cnn.training_loss, label='training loss')
+        plt.plot(range(1,epochs+1), cnn.testing_loss, label='testing loss')
+        plt.xlabel('epoch')
+        plt.ylabel('Cross entropy')
+        plt.title('Learning Curve')
+        plt.legend()
+
+        plt.subplot(2,1,2)
+        plt.plot(range(1,epochs+1), cnn.training_accuracy, label='training acc')
+        plt.plot(range(1,epochs+1), cnn.testing_accuracy, label='testing acc')
+        plt.xlabel('epoch')
+        plt.ylabel('Accuracy')
+        plt.title('Accuracy')
+        plt.legend()
 
     plot_weights = False
     if plot_weights:
@@ -300,22 +318,48 @@ if __name__ == "__main__":
         output_hist_weights = np.ones_like(output)/float(len(output))
         plt.hist(output, bins=bins, weights=output_hist_weights)
 
-    plot_metric = False
-    if plot_metric:
-        plt.subplot(2,1,1)
-        plt.plot(range(1,epochs+1), cnn.training_loss, label='training loss')
-        plt.plot(range(1,epochs+1), cnn.testing_loss, label='testing loss')
-        plt.xlabel('epoch')
-        plt.ylabel('Cross entropy')
-        plt.title('Learning Curve')
-        plt.legend()
+    plot_convolved = True
+    if plot_convolved:
+        
+        from scipy import misc
+        # fullpath = "train\\Motorbikes\\image_0360.jpg"
+        # face = misc.imread(fullpath)
+        # face = misc.imresize(face, (128, 128))
+        # face = np.dot(face[...,:3], [0.2989, 0.5870, 0.1140])
+        # misc.imsave("Q4.jpg", face)
 
-        plt.subplot(2,1,2)
-        plt.plot(range(1,epochs+1), cnn.training_accuracy, label='training acc')
-        plt.plot(range(1,epochs+1), cnn.testing_accuracy, label='testing acc')
-        plt.xlabel('epoch')
-        plt.ylabel('Accuracy')
-        plt.title('Accuracy')
-        plt.legend()
+        face = misc.imread("Q4.jpg")
+        # plt.imshow(face, cmap=plt.cm.gray)
+        filter1 = cnn.reader.get_tensor('conv_1/_weights').squeeze() # (5, 5, 1, 32) -> (5, 5, 32)
+        filter2 = cnn.reader.get_tensor('conv_2/_weights') # (5, 5, 32, 64)
+        filtered1 = np.zeros((128, 128, 32))
+        filtered2 = np.zeros((128, 128, 64))
+        for i in range(32):
+            filtered1[:,:,i] = ndimage.convolve(face, filter1[:,:,i], mode='constant', cval=0.0)
+
+        for i in range(64):
+            tmp = np.zeros((128, 128, 32))
+            for j in range(32):
+                tmp[:,:,j] = ndimage.convolve(
+                    filtered1[:,:,j].squeeze(),
+                    filter2[:,:,j,i].squeeze(),
+                    mode='constant', cval=0.0
+                )
+            filtered2[:,:,i] = np.sum(tmp, axis=2);
+        
+        fig1 = plt.figure(1)
+        for i in range(16):
+            plt.subplot(4,4,i+1)
+            plt.imshow(filtered1[:,:,i], cmap=plt.cm.gray)
+        fig1.show()
+        
+        fig2 = plt.figure(2)
+        for i in range(16):
+            plt.subplot(4,4,i+1)
+            plt.imshow(filtered2[:,:,i], cmap=plt.cm.gray)
+        fig2.show()
+        input()
+
+
     del cnn
 
