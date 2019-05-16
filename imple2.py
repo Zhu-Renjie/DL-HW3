@@ -179,15 +179,11 @@ class CNN():
 
             weights_shape = (list(kernel_size) + [n_input_channels, n_output_channels])
             weights = tf.get_variable(name='_weights', shape=weights_shape)
-            print(weights)
 
             biases = tf.get_variable(name='_biases', initializer=tf.zeros(shape=[n_output_channels]))
-            print(biases)
 
             conv = tf.nn.conv2d(input=input_tensor, filter=weights, strides=strides, padding=padding_mode)
-            print(conv)
             conv = tf.nn.bias_add(conv, biases, name='net_pre-activation')
-            print(conv)
             conv = tf.nn.relu(conv, name='activation')
             
             return conv
@@ -201,21 +197,16 @@ class CNN():
             
             weight_shape = [n_input_units, n_output_units]
             weights = tf.get_variable(name='_weights', shape=weight_shape)
-            print(weights)
 
             biases = tf.get_variable(name='_biases', initializer=tf.zeros(shape=[n_output_units]))
-            print(biases)
 
             layer = tf.matmul(input_tensor, weights)
-            print(layer)
             layer = tf.nn.bias_add(layer, biases, name='net_pre-activation')
-            print(layer)
 
             if activation_fn is None:
                 return layer
 
             layer = activation_fn(layer)
-            print(layer)
             return layer
     
 def batch_generator(X, y, batch_size=64, shuffle=False, random_seed=None):
@@ -235,30 +226,35 @@ if __name__ == "__main__":
     X_train, name_train, y_train = label_generator("prepro_train")
     X_test, name_test, y_test = label_generator("prepro_test") # narray
     
-    epochs = 20
+    epochs = 1
     cnn = CNN(random_seed=123, 
             batchsize=64, 
             epochs=epochs
             )
-    # cnn.load(epoch=20, path='model/')
-    cnn.train(training_set=(X_train, y_train),
-            validation_set=(X_test, y_test),
-            initialize=True
-            )
-    plt.subplot(2,1,1)
-    plt.plot(range(1,epochs+1), cnn.training_loss, label='training loss')
-    plt.plot(range(1,epochs+1), cnn.testing_loss, label='testing loss')
-    plt.xlabel('epoch')
-    plt.ylabel('Cross entropy')
-    plt.title('Learning Curve')
-    plt.legend()
-
-    plt.subplot(2,1,2)
-    plt.plot(range(1,epochs+1), cnn.training_accuracy, label='training acc')
-    plt.plot(range(1,epochs+1), cnn.testing_accuracy, label='testing acc')
-    plt.xlabel('epoch')
-    plt.ylabel('Accuracy')
-    plt.title('Accuracy')
-    plt.legend()
+    cnn.load(epoch=1, path='model/')
+    # cnn.train(training_set=(X_train, y_train),
+    #         validation_set=(X_test, y_test),
+    #         initialize=True
+    #         )
     # cnn.save(epoch=epochs)
-    pass
+
+    print(tf.global_variables())
+
+    plot = False
+    if plot:
+        plt.subplot(2,1,1)
+        plt.plot(range(1,epochs+1), cnn.training_loss, label='training loss')
+        plt.plot(range(1,epochs+1), cnn.testing_loss, label='testing loss')
+        plt.xlabel('epoch')
+        plt.ylabel('Cross entropy')
+        plt.title('Learning Curve')
+        plt.legend()
+
+        plt.subplot(2,1,2)
+        plt.plot(range(1,epochs+1), cnn.training_accuracy, label='training acc')
+        plt.plot(range(1,epochs+1), cnn.testing_accuracy, label='testing acc')
+        plt.xlabel('epoch')
+        plt.ylabel('Accuracy')
+        plt.title('Accuracy')
+        plt.legend()
+    del cnn
