@@ -16,6 +16,10 @@ class CNN():
         self.learning_rate = learning_rate
         self.dropout_rate = dropout_rate
         self.shuffle = shuffle
+        self.training_loss = []
+        self.training_accuracy = []
+        self.testing_loss = []
+        self.testing_accuracy = []
 
         g = tf.Graph()
         with g.as_default():
@@ -26,34 +30,25 @@ class CNN():
         self.sess = tf.Session(graph=g)
 
     def build_cnn(self):
-        # tf_x = tf.placeholder(tf.float32, shape=[None, 784], name='tf_x')
         tf_x = tf.placeholder(tf.float32, shape=[None, 128, 128], name='tf_x')/255
         tf_y = tf.placeholder(tf.int32, shape=[None, 101], name='tf_y')
         is_train = tf.placeholder(tf.bool, shape=(), name='is_train')
 
-        # tf_x_image = tf.reshape(tf_x, shape=[-1, 28, 28, 1], name='tf_x_reshape')
         tf_x_image = tf.reshape(tf_x, shape=[-1, 128, 128, 1], name='tf_x_reshape')
-        # tf_y_onehot = tf.one_hot(indices=tf_y, depth=10, dtype=tf.float32, name='tf_y_onehot')
         tf_y_onehot = tf_y
 
-        print('\nBuild 1st layer')
         h1 = self.conv_layer(tf_x_image, name='conv_1', kernel_size=(5,5), 
                             padding_mode='SAME', n_output_channels=32)
         h1_pool = tf.nn.max_pool(h1, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
 
-        print('\nBuild 2nd layer')
         h2 = self.conv_layer(h1_pool, name='conv_2', kernel_size=(5,5), padding_mode='SAME',
                             n_output_channels=64)
         h2_pool = tf.nn.max_pool(h2, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
 
-        print('\nBuild 3rd layer')
         h3 = self.fc_layer(h2_pool, name='fc_3', n_output_units=1024,
                          activation_fn=tf.nn.relu)
-        # keep_prob = tf.placeholder(tf.float32, name='fc_keep_prob')
-        # h3_drop = tf.nn.dropout(h3, keep_prob=keep_prob, name='dropout_layer')
         h3_drop = tf.nn.dropout(h3, keep_prob=1-self.dropout_rate, name='dropout_layer')
 
-        print('\nBuild 4th layer')
         h4 = self.fc_layer(h3_drop, name='fc_4', n_output_units=101, activation_fn=None)
 
         predictions = {
@@ -68,13 +63,12 @@ class CNN():
             name = 'cross_entropy_loss'
         )
 
-        
+
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         optimizer = optimizer.minimize(cross_entropy_loss, name='train_op')
 
         correct_predictions = tf.equal(
             predictions['labels'],
-            # tf_y,
             tf.cast(tf.argmax(tf_y, axis=1), tf.int32),
             name='correct_preds'
         )
@@ -107,38 +101,63 @@ class CNN():
             
             X_data = np.array(training_set[0])
             y_data = np.array(training_set[1])
-            self.training_cost= []
 
             for epoch in range(1, self.epochs+1):
-                batch_gen = batch_generator(X_data, y_data, shuffle=self.shuffle)
+                batch_gen = batch_generator(
+                    X_data,
+                    y_data,
+                    batch_size=64,
+                    shuffle=self.shuffle
+                )
             
                 avg_loss = 0.0
+                avg_acc = 0.0
                 for i, (batch_x, batch_y) in enumerate(batch_gen):
                     feed = {
                         'tf_x:0' : batch_x,
                         'tf_y:0' : batch_y,
                         'is_train:0' : True
                     }
-                    loss, _ = self.sess.run(
-                        ['cross_entropy_loss:0', 'train_op'],
+                    loss, acc, _ = self.sess.run(
+                        ['cross_entropy_loss:0', 'accuracy:0', 'train_op'],
                         feed_dict = feed
                     )
                     avg_loss += loss
-                self.training_cost.append(avg_loss / (i+1))
-                print("Epoch {} Training Avg. Loss: {}".format(epoch, avg_loss), end=' ')
+                    avg_acc += acc
+                self.training_loss.append(avg_loss / (i+1))
+                self.training_accuracy.append(avg_acc / (i+1))
+                print("="*50)
+                print("Epoch {} Training Avg. Loss: {}".format(epoch, avg_loss / (i+1)))
+                print("Epoch {} Training Avg. Acc: {}".format(epoch, avg_acc / (i+1)))
 
                 if validation_set is not None:
                     X_test = validation_set[0]
                     y_test = validation_set[1]
-                    batch_gen = batch_generator(X_test, y_test, shuffle=False)
+                    batch_gen = batch_generator(
+                        X_test,
+                        y_test,
+                        batch_size=211,
+                        shuffle=self.shuffle
+                    )
+                    avg_loss = 0.0
+                    avg_acc = 0.0
                     for i, (batch_x, batch_y) in enumerate(batch_gen):
                         feed = {
                             'tf_x:0' : batch_x,
                             'tf_y:0' : batch_y,
                             'is_train:0' : False
                         }
-                        valid_acc = self.sess.run('accuracy:0', feed_dict=feed)
-                        print(" Validation Acc: {}".format(valid_acc))
+                        valid_loss, valid_acc = self.sess.run(
+                            ['cross_entropy_loss:0', 'accuracy:0'],
+                             feed_dict=feed
+                        )
+                        avg_loss += valid_loss
+                        avg_acc += valid_acc
+                    
+                    self.testing_loss.append(avg_loss/6)
+                    self.testing_accuracy.append(avg_acc/6)
+                    print(" Validation Loss: {}".format(avg_loss/6))
+                    print(" Validation Acc: {}".format(avg_acc/6))
                 else:
                     print()
 
@@ -221,10 +240,25 @@ if __name__ == "__main__":
             batchsize=64, 
             epochs=epochs
             )
+    # cnn.load(epoch=20, path='model/')
     cnn.train(training_set=(X_train, y_train),
-            validation_set=(X_test, y_test)
+            validation_set=(X_test, y_test),
+            initialize=True
             )
-    cnn.save(epoch=epochs)
-    # K = batch_generator(X_test, y_test, batch_size=5)
-    # X_batch, y_batch = next(K)
+    plt.subplot(2,1,1)
+    plt.plot(range(1,epochs+1), cnn.training_loss, label='training loss')
+    plt.plot(range(1,epochs+1), cnn.testing_loss, label='testing loss')
+    plt.xlabel('epoch')
+    plt.ylabel('Cross entropy')
+    plt.title('Learning Curve')
+    plt.legend()
+
+    plt.subplot(2,1,2)
+    plt.plot(range(1,epochs+1), cnn.training_accuracy, label='training acc')
+    plt.plot(range(1,epochs+1), cnn.testing_accuracy, label='testing acc')
+    plt.xlabel('epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy')
+    plt.legend()
+    # cnn.save(epoch=epochs)
     pass
