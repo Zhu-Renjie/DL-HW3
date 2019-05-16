@@ -333,32 +333,42 @@ if __name__ == "__main__":
         filter1 = cnn.reader.get_tensor('conv_1/_weights').squeeze() # (5, 5, 1, 32) -> (5, 5, 32)
         filter2 = cnn.reader.get_tensor('conv_2/_weights') # (5, 5, 32, 64)
         filtered1 = np.zeros((128, 128, 32))
-        filtered2 = np.zeros((128, 128, 64))
+        filtered2 = np.zeros((32, 32, 64))
         for i in range(32):
             filtered1[:,:,i] = ndimage.convolve(face, filter1[:,:,i], mode='constant', cval=0.0)
 
+        filtered1 = np.maximum(filtered1, 0) # relu
+        maxpooled1 = np.zeros((32,32,32)) # max pooling
+        for i in range(0, 128, 4):
+            for j in range(0, 128, 4):
+                for k in range(32):
+                    maxpooled1[int(i/4), int(j/4), k] = np.max(filtered1[i:i+4, j:j+4, k])
+
         for i in range(64):
-            tmp = np.zeros((128, 128, 32))
+            tmp = np.zeros((32, 32, 32))
             for j in range(32):
                 tmp[:,:,j] = ndimage.convolve(
-                    filtered1[:,:,j].squeeze(),
+                    maxpooled1[:,:,j].squeeze(),
                     filter2[:,:,j,i].squeeze(),
                     mode='constant', cval=0.0
                 )
             filtered2[:,:,i] = np.sum(tmp, axis=2);
+        # filtered2 = np.maximum(filtered2, 0); # relu
         
         fig1 = plt.figure(1)
-        for i in range(16):
-            plt.subplot(4,4,i+1)
+        sideLen = 4
+        for i in range(sideLen**2):
+            plt.subplot(sideLen,sideLen,i+1)
             plt.imshow(filtered1[:,:,i], cmap=plt.cm.gray)
         fig1.show()
         
         fig2 = plt.figure(2)
-        for i in range(16):
-            plt.subplot(4,4,i+1)
+        sideLen = 4
+        for i in range(sideLen**2):
+            plt.subplot(sideLen,sideLen,i+1)
             plt.imshow(filtered2[:,:,i], cmap=plt.cm.gray)
         fig2.show()
-        input()
+        input("Type anything to exit...")
 
 
     del cnn
