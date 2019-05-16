@@ -28,6 +28,8 @@ class CNN():
             self.init_op = tf.global_variables_initializer()
             self.saver = tf.train.Saver()
         self.sess = tf.Session(graph=g)
+        
+
 
     def build_cnn(self):
         tf_x = tf.placeholder(tf.float32, shape=[None, 128, 128], name='tf_x')/255
@@ -92,7 +94,24 @@ class CNN():
     def load(self, path, epoch):
         print('Loading model from {}'.format(path))
         self.saver.restore(self.sess,
-            os.path.join(path, 'cnn-model.ckpt-{}'.format(epoch)))
+            os.path.join(path, 'cnn-model.ckpt-{}'.format(epoch))
+        )
+
+        # from tensorflow.python.tools import inspect_checkpoint as chkp
+        # chkp.print_tensors_in_checkpoint_file(
+        #     os.path.join(path, 'cnn-model.ckpt-{}'.format(epoch)),
+        #     tensor_name='conv_1/_weights',
+        #     all_tensors=False
+        # )
+
+        from tensorflow.python import pywrap_tensorflow
+
+        checkpoint_path = os.path.join(path, 'cnn-model.ckpt-{}'.format(epoch))
+        reader = pywrap_tensorflow.NewCheckpointReader(checkpoint_path)
+        var_to_shape_map = reader.get_variable_to_shape_map()
+        for key in var_to_shape_map:
+            print("tensor_name: ", key)
+            # print(reader.get_tensor(key))
 
 
     def train(self, training_set, validation_set=None, initialize=True):
@@ -226,20 +245,19 @@ if __name__ == "__main__":
     X_train, name_train, y_train = label_generator("prepro_train")
     X_test, name_test, y_test = label_generator("prepro_test") # narray
     
-    epochs = 1
+    epochs = 20
     cnn = CNN(random_seed=123, 
             batchsize=64, 
             epochs=epochs
             )
-    cnn.load(epoch=1, path='model/')
+    cnn.load(epoch=20, path='model/')
+
     # cnn.train(training_set=(X_train, y_train),
     #         validation_set=(X_test, y_test),
     #         initialize=True
     #         )
     # cnn.save(epoch=epochs)
-
-    print(tf.global_variables())
-
+    
     plot = False
     if plot:
         plt.subplot(2,1,1)
