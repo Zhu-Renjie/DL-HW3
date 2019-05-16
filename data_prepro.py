@@ -24,7 +24,7 @@ def data_preprocess(folder=None, root=None):
         if isfile(fullpath):
             # print("file：", f)
             face = misc.imread(fullpath,'L')
-            size = 256
+            size = 128
             face = misc.imresize(face, (size,size))
             # print(face.shape, face.dtype)
             if len(face.shape) == 3:
@@ -47,7 +47,7 @@ def data_preprocess(folder=None, root=None):
             #     createFolder("prepro_test\\"+f)
             # elif syllable[0] == 'train':
             #     createFolder("prepro_train\\"+f)
-            data_prepro(folder=f, root=path)
+            data_preprocess(folder=f, root=path)
 
 def rgb2gray(rgb):
     return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
@@ -98,5 +98,6 @@ if __name__ == "__main__":
     ## prepose training set and testing set
     # data_preprocess(root="test")
     # data_preprocess(root="train")
-    X, y, onehot_encoded = label_generator("prepro_test")
+    # X, y, onehot_encoded = label_generator("prepro_test")
     # X, y, classes = label_generator("prepro_train")
+    pass

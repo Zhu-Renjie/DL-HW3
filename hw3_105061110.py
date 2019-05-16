@@ -14,8 +14,7 @@ class CNN():
             self.channel = imsize[2]
         self.classes = 101
 
-        # self.xs = tf.placeholder(tf.float32, [None, self.height*self.width])/255
-        # print(self.xs.shape) --> (?, 65536)
+
         self.xs = tf.placeholder(tf.float32, [None, self.height, self.width])/255
         self.ys = tf.placeholder(tf.float32, [None, self.classes])
         self.keep_prob = tf.placeholder(tf.float32)
@@ -24,8 +23,9 @@ class CNN():
 
         ## conv1
         # kernel = 5x5, channel= 1, feature_maps = 8
-        self.fmaps_conv1 = 8
-        self.W_conv1 = self.init_weights([5, 5, self.channel, self.fmaps_conv1])
+        self.fmaps_conv1 = 16
+        self.ker_conv1 = 3
+        self.W_conv1 = self.init_weights([self.ker_conv1, self.ker_conv1, self.channel, self.fmaps_conv1])
         self.b_conv1 = self.init_biases([self.fmaps_conv1])
         self.conv1 = self.conv2d(self.x_image, self.W_conv1) + self.b_conv1
         self.a_conv1 = tf.nn.relu(self.conv1)               # output size 128x128x16
@@ -33,16 +33,17 @@ class CNN():
 
         ## conv2
         # kernel = 5x5, channel= 32, feature_maps = 32
-        self.fmaps_conv2 = 8
-        self.W_conv2 = self.init_weights([5, 5, self.fmaps_conv1, self.fmaps_conv2])
+        self.fmaps_conv2 = 32
+        self.ker_conv2 = 3
+        self.W_conv2 = self.init_weights([self.ker_conv2, self.ker_conv2, self.fmaps_conv1, self.fmaps_conv2])
         self.b_conv2 = self.init_biases([self.fmaps_conv2])
         self.conv2 = self.conv2d(self.p_conv1, self.W_conv2) + self.b_conv2
         self.a_conv2 = tf.nn.relu(self.conv2)               # output size 64x64x16
-        self.p_conv2 = self.max_pool(self.a_conv2, rate=4)  # output size 16x16x8
+        self.p_conv2 = self.max_pool(self.a_conv2, rate=4)  # output size 16x16x16
 
         ## fcn1
         self.size_conv2 = 16
-        self.hidden_fcn1 = 128
+        self.hidden_fcn1 = 1024
         self.W_fcn1 = self.init_weights([self.size_conv2*self.size_conv2*self.fmaps_conv2, self.hidden_fcn1])
         self.b_fcn1 = self.init_biases([self.hidden_fcn1])
         self.f_fcn1 = tf.reshape(self.p_conv2, [-1, self.size_conv2*self.size_conv2*self.fmaps_conv2]) # flatten
