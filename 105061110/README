@@ -1,0 +1,21 @@
+Follow these steps to excute the code:
+
+Step 0.
+Place the traing set and testing folder into this folder.
+
+Step 1.
+Execute data_prepro.py (need to uncomment the line 151~157).
+It might take a while to process the whole training set and testing set.
+The result will be store at prepor_train/ and prepro_test/ ,respectively.
+For the result of data augmentation, they will be store in aug_train/. 
+
+Dependency:
+numpy, scipy, matplotlib, sklearn
+
+2.
+To produce the result of the assigment. Execute hw3_105061110.py.
+Uncomment line 486 to produce Q3, same rule alppies. (Recommend do it one line at a time, otherwise GPU may fail)
+The folder model/ is used to store the trained model. I extract parameters in the learned model to plot them out.
+
+Dependency:
+numpy, scipy, matplotlib, tensorflow
