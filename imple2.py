@@ -295,8 +295,7 @@ def batch_normalization(X, given_mean=None, given_var=None):
     # print(new_batch_mean, new_batch_var)
     return X, batch_mean, batch_var
         
-def main():
-    aug = False
+def main(aug=False, dropout_rate=0, regularization=False, batch_normalization=False):
     if aug:
         X_train, name_train, y_train = label_generator("aug_train")
     else:
@@ -321,12 +320,12 @@ def main():
                 batchsize=64,
                 epochs=epochs,
                 learning_rate=8e-4,
-                dropout_rate=0,
+                dropout_rate=dropout_rate,
                 shuffle=True,
                 random_seed=42,
-                regularization=False,
+                regularization=regularization,
                 reg_constant=5e-4,
-                batch_normalization=True
+                batch_normalization=batch_normalization
             )
 
         cnn.train(training_set=(X_train, y_train),
@@ -451,4 +450,11 @@ def main():
         del cnn
 
 if __name__ == "__main__":
-    main()
+    # Q3 setting
+    # main(aug=False, dropout_rate=0, regularization=False, batch_normalization=False)
+
+    # Q5 setting
+    # main(aug=False, dropout_rate=0, regularization=True, batch_normalization=False)
+
+    # Q6 setting
+    main(aug=True, dropout_rate=0.5, regularization=False, batch_normalization=True)
