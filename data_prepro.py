@@ -69,11 +69,7 @@ def data_preprocess(folder=None, root=None, aug=False):
             #     createFolder("prepro_test\\"+f)
             # elif syllable[0] == 'train':
             #     createFolder("prepro_train\\"+f)
-<<<<<<< HEAD
-            data_preprocess(folder=f, root=path)
-=======
             data_preprocess(folder=f, root=path, aug=aug)
->>>>>>> origin/master
 
 def rgb2gray(rgb):
     return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
@@ -157,13 +153,10 @@ if __name__ == "__main__":
     # data_preprocess(root="train")
     # X, y, onehot_encoded = label_generator("prepro_test")
     # X, y, classes = label_generator("prepro_train")
-<<<<<<< HEAD
-=======
     # data_augmentation(  path="Q4.jpg",
     #                     rotate=90,
     #                     # noise=('Gaussian', 10),
     #                     noise=('Salt&Pepper', 0.01)
     #                 )
     data_preprocess(root="train", aug=True)
->>>>>>> origin/master
     pass
