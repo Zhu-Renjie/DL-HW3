@@ -1,13 +1,13 @@
 import os
 from os import listdir
 from os.path import isfile, isdir, join
-from scipy import misc
+from scipy import misc, ndimage
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import array, argmax
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
-def data_preprocess(folder=None, root=None):
+def data_preprocess(folder=None, root=None, aug=False):
     if root is not None:
         path = root
 
@@ -19,7 +19,6 @@ def data_preprocess(folder=None, root=None):
 
     i = -1
     for f in files:
-        i += 1
         fullpath = join(path, f)
         if isfile(fullpath):
             # print("file：", f)
@@ -32,12 +31,32 @@ def data_preprocess(folder=None, root=None):
 
             if syllable[0] == 'test':
                 # e.g. prepro_test\accordion_0.jpg
-                newpath = "prepro_test" + "\\{}_{}.jpg".format(syllable[1], i)
-                print(newpath)
+                if aug:
+                    newpath = "aug_train" + "\\{}_{}.jpg".format(syllable[1], i)
+                    i += 1
+                    misc.imsave(newpath, face)
+
+                    newpath = "aug_train" + "\\{}_{}.jpg".format(syllable[1], i)
+                    
+                    noise = [('Gaussian', 10), ('Salt&Pepper', 0.01)][np.random.randint(2)]
+                    angle = 180 * np.random.random() - 90 # -90 ~ +90
+                    face2 = data_augmentation(  img=face,
+                                                flip=np.random.randint(2),
+                                                rotate=angle,
+                                                noise=noise
+                                            )
+                    i += 1
+                    misc.imsave(newpath, face2)
+                else:
+                    newpath = "prepro_test" + "\\{}_{}.jpg".format(syllable[1], i)
+                    i += 1
+                    misc.imsave(newpath, face)
+
             elif syllable[0] == 'train':
                 newpath = "prepro_train" + "\\{}_{}.jpg".format(syllable[1], i)
-                # print(newpath)
-            misc.imsave(newpath, face)
+                i += 1
+                misc.imsave(newpath, face)
+            
             # plt.imshow(face,cmap=plt.cm.gray)
             # plt.show()
 
@@ -47,7 +66,7 @@ def data_preprocess(folder=None, root=None):
             #     createFolder("prepro_test\\"+f)
             # elif syllable[0] == 'train':
             #     createFolder("prepro_train\\"+f)
-            data_prepro(folder=f, root=path)
+            data_preprocess(folder=f, root=path, aug=aug)
 
 def rgb2gray(rgb):
     return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
@@ -89,10 +108,52 @@ def label_generator(path=None):
     
     return np.asarray(X), np.asarray(y), onehot_encoded
 
+def data_augmentation(  path=None,
+                        img=None, 
+                        flip=False,
+                        rotate=None,
+                        noise=None
+                        ):
+    if img is None:
+        face = misc.imread(path,'L')
+    else:
+        face = img
+    
+    if flip:
+        face = np.fliplr(face)
+    if rotate is not None:
+        face = ndimage.rotate(face, rotate, reshape=False)
+    if noise is not None:
+        if noise[0] == 'Gaussian':
+            face = face + np.random.normal(0, noise[1], face.shape)
+            face = np.clip(face, 0, 255)
+        if noise[0] == 'Salt&Pepper':
+            # Obg: Salt and Pepper noise
+            # https://stackoverflow.com/questions/22937589/how-to-add-noise-gaussian-salt-and-pepper-etc-to-image-in-python-with-opencv
+            H, W = face.shape
+            prob = noise[1]
+            thres = 1 - prob
+            for i in range(H):
+                for j in range(W):
+                    rdn = np.random.random()
+                    if rdn < prob:
+                        face[i][j] = 0
+                    elif rdn > thres:
+                        face[i][j] = 255
+    # plt.imshow(face,cmap=plt.cm.gray)
+    return face
+
 
 if __name__ == "__main__":
     ## prepose training set and testing set
     # data_preprocess(root="test")
     # data_preprocess(root="train")
-    X, y, onehot_encoded = label_generator("prepro_test")
+    # X, y, onehot_encoded = label_generator("prepro_test")
     # X, y, classes = label_generator("prepro_train")
+    # data_augmentation(  path="Q4.jpg",
+    #                     rotate=90,
+    #                     # noise=('Gaussian', 10),
+    #                     noise=('Salt&Pepper', 0.01)
+    #                 )
+    data_preprocess(root="test", aug=True)
+    pass
