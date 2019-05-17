@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import tensorflow as tf
-from scipy import ndimage
+from scipy import ndimage, misc
 import matplotlib.pyplot as plt
 from data_prepro import data_preprocess, label_generator
 
@@ -295,7 +295,13 @@ def batch_normalization(X, given_mean=None, given_var=None):
     # print(new_batch_mean, new_batch_var)
     return X, batch_mean, batch_var
         
-def main(aug=False, dropout_rate=0, regularization=False, batch_normalization=False):
+def main(   name=None,
+            predict=False,
+            aug=False,
+            dropout_rate=0,
+            regularization=False,
+            batch_normalization=False
+        ):
     if aug:
         X_train, name_train, y_train = label_generator("aug_train")
     else:
@@ -312,14 +318,14 @@ def main(aug=False, dropout_rate=0, regularization=False, batch_normalization=Fa
 
     build_model = True
     if build_model:    
-        epochs = 20
+        epochs = 10
         # regularization=False, learning_rate=8e-4 -> 66%
         # regularization=True, learning_rate=2e-4 -> 64% 63%
         # regularization=True, learning_rate=2e-4, reg_constant=5e-4 -> 65% 64%
         cnn = CNN(
                 batchsize=64,
                 epochs=epochs,
-                learning_rate=8e-4,
+                learning_rate=4e-4,
                 dropout_rate=dropout_rate,
                 shuffle=True,
                 random_seed=42,
@@ -328,33 +334,53 @@ def main(aug=False, dropout_rate=0, regularization=False, batch_normalization=Fa
                 batch_normalization=batch_normalization
             )
 
-        cnn.train(training_set=(X_train, y_train),
-                validation_set=(X_test, y_test),
-                initialize=True
-                )
+        if predict:
+            cnn.load(epoch=epochs, path='model/')
+            batch = np.zeros((1, 128, 128))
+            tar = 20
+            batch[0, :, :] = X_test[tar, :, :]
+            preds = cnn.predict(batch)[0]
+            true_label = np.where(y_test[tar,:]==1)[0][0]
+            plt.title("preds:{}, true label:{}".format(preds, true_label))
+            plt.imshow(batch.squeeze(), cmap=plt.cm.gray)
+            plt.savefig("predict_target.jpg")
+            return 0
+
+        else:        
+            cnn.train(training_set=(X_train, y_train),
+                    validation_set=(X_test, y_test),
+                    initialize=True
+                    )
+        
         cnn.save(epoch=epochs)
 
         cnn.load(epoch=epochs, path='model/')
 
-    plot_metric = False
+    plot_metric = True
     if plot_metric:
-        plt.subplot(2,1,1)
+        # plt.subplot(2,1,1)
+        fig1 = plt.figure(1)
         plt.plot(range(1,epochs+1), cnn.training_loss, label='training loss')
         plt.plot(range(1,epochs+1), cnn.testing_loss, label='testing loss')
         plt.xlabel('epoch')
         plt.ylabel('Cross entropy')
         plt.title('Learning Curve')
         plt.legend()
+        if name is not None:
+            plt.savefig("{}_loss.jpg".format(name))
 
-        plt.subplot(2,1,2)
+        # plt.subplot(2,1,2)
+        fig2 = plt.figure(2)
         plt.plot(range(1,epochs+1), cnn.training_accuracy, label='training acc')
         plt.plot(range(1,epochs+1), cnn.testing_accuracy, label='testing acc')
         plt.xlabel('epoch')
         plt.ylabel('Accuracy')
         plt.title('Accuracy')
         plt.legend()
+        if name is not None:
+            plt.savefig("{}_acc.jpg".format(name))
 
-    plot_weights = False
+    plot_weights = True
     if plot_weights:
         # Obj: Plot weights in probability distribution
         # https://stackoverflow.com/questions/5498008/pylab-histdata-normed-1-normalization-seems-to-work-incorrect
@@ -394,17 +420,20 @@ def main(aug=False, dropout_rate=0, regularization=False, batch_normalization=Fa
         output_hist_weights = np.ones_like(output)/float(len(output))
         plt.hist(output, bins=bins, weights=output_hist_weights)
 
-    plot_convolved = False
+        plt.subplots_adjust(left=None, bottom=0.05, right=0.9, top=0.92, wspace=0.25, hspace=0.4)
+        if name is not None:
+            plt.savefig("{}_weights.jpg".format(name))
+
+    plot_convolved = True
     if plot_convolved:
-        
-        from scipy import misc
         # fullpath = "train\\Motorbikes\\image_0360.jpg"
         # face = misc.imread(fullpath)
         # face = misc.imresize(face, (128, 128))
         # face = np.dot(face[...,:3], [0.2989, 0.5870, 0.1140])
         # misc.imsave("Q4.jpg", face)
 
-        face = misc.imread("Q4.jpg")
+        # face = misc.imread("Q4.jpg")
+        face = X_test[20, :, :]
         # plt.imshow(face, cmap=plt.cm.gray)
         filter1 = cnn.reader.get_tensor('conv_1/_weights').squeeze() # (5, 5, 1, 32) -> (5, 5, 32)
         filter2 = cnn.reader.get_tensor('conv_2/_weights') # (5, 5, 32, 64)
@@ -436,25 +465,32 @@ def main(aug=False, dropout_rate=0, regularization=False, batch_normalization=Fa
         for i in range(sideLen**2):
             plt.subplot(sideLen,sideLen,i+1)
             plt.imshow(filtered1[:,:,i], cmap=plt.cm.gray)
-        fig1.show()
+        # fig1.show()
+        if name is not None:
+            plt.savefig("{}_conv1_activated.jpg".format(name))
         
         fig2 = plt.figure(2)
         sideLen = 4
         for i in range(sideLen**2):
             plt.subplot(sideLen,sideLen,i+1)
             plt.imshow(filtered2[:,:,i], cmap=plt.cm.gray)
-        fig2.show()
-        input("Type anything to exit...")
+        # fig2.show()
+        # input("Type anything to exit...")
+        if name is not None:
+            plt.savefig("{}_conv2_activated.jpg".format(name))
 
     if build_model:
         del cnn
 
 if __name__ == "__main__":
     # Q3 setting
-    # main(aug=False, dropout_rate=0, regularization=False, batch_normalization=False)
+    # main(name="without_reg", aug=False, dropout_rate=0, regularization=False, batch_normalization=False)
+
+    # Q4 setting
+    # main(predict=True)
 
     # Q5 setting
-    # main(aug=False, dropout_rate=0, regularization=True, batch_normalization=False)
+    main(name="with_reg", aug=False, dropout_rate=0, regularization=True, batch_normalization=False)
 
     # Q6 setting
-    main(aug=True, dropout_rate=0.5, regularization=False, batch_normalization=True)
+    # main(aug=True, dropout_rate=0.5, regularization=False, batch_normalization=True)
