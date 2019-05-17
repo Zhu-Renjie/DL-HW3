@@ -16,7 +16,8 @@ class CNN():
                 shuffle=True,
                 random_seed=None,
                 regularization=False,
-                reg_constant=0.01
+                reg_constant=0.01,
+                batch_normalization=False
                 ):
         
         np.random.seed(random_seed)
@@ -31,6 +32,7 @@ class CNN():
         self.testing_accuracy = []
         self.regularization = regularization
         self.reg_constant = reg_constant
+        self.batch_normalization = batch_normalization
 
         g = tf.Graph()
         with g.as_default():
@@ -155,6 +157,11 @@ class CNN():
                 avg_loss = 0.0
                 avg_acc = 0.0
                 for i, (batch_x, batch_y) in enumerate(batch_gen):
+                    if self.batch_normalization:
+                        batch_x, batch_mean, batch_var = batch_normalization(batch_x)
+                        self.batch_mean = batch_mean
+                        self.batch_var = batch_var
+                    
                     feed = {
                         'tf_x:0' : batch_x,
                         'tf_y:0' : batch_y,
@@ -184,6 +191,8 @@ class CNN():
                     avg_loss = 0.0
                     avg_acc = 0.0
                     for i, (batch_x, batch_y) in enumerate(batch_gen):
+                        if self.batch_normalization:
+                            batch_x, _, _ = batch_normalization(batch_x, self.batch_mean, self.batch_var)
                         feed = {
                             'tf_x:0' : batch_x,
                             'tf_y:0' : batch_y,
@@ -263,37 +272,70 @@ def batch_generator(X, y, batch_size=64, shuffle=False, random_seed=None):
     for i in range(0, X.shape[0], batch_size):
         yield (X[i:i+batch_size, :], y[i:i+batch_size, :])
 
+def batch_normalization(X, given_mean=None, given_var=None):
+    # Obj: Batch normalization
+    # https://towardsdatascience.com/understanding-batch-normalization-with-examples-in-numpy-and-tensorflow-with-interactive-code-7f59bb126642
+    batch_size = X.shape[0]
+    img_size = X.shape[1:]
+    # print(batch_size, img_size)
+    mean = lambda X, batch_size: np.sum(X, axis=0) / batch_size 
+    var = lambda X, batch_mean, batch_size: np.sum(np.square(X - batch_mean), axis=0) / batch_size
+    if given_mean is not None:
+        batch_mean = given_mean
+    else:
+        batch_mean = mean(X, batch_size)
+    if given_var is not None:
+        batch_var = given_var
+    else:
+        batch_var = var(X, batch_mean, batch_size)
+    # print(batch_mean, batch_var)
+    X = (X - batch_mean) / np.sqrt(batch_var + 1e-10)
+    # new_batch_mean = mean(X, batch_size)
+    # new_batch_var = var(X, new_batch_mean, batch_size)
+    # print(new_batch_mean, new_batch_var)
+    return X, batch_mean, batch_var
         
-if __name__ == "__main__":
-    aug = True
+def main():
+    aug = False
     if aug:
         X_train, name_train, y_train = label_generator("aug_train")
     else:
         X_train, name_train, y_train = label_generator("prepro_train")
     X_test, name_test, y_test = label_generator("prepro_test") # narray
-    
-    epochs = 20
-    # regularization=False, learning_rate=8e-4 -> 66%
-    # regularization=True, learning_rate=2e-4 -> 64% 63%
-    # regularization=True, learning_rate=2e-4, reg_constant=5e-4 -> 65% 64%
-    cnn = CNN(
-            batchsize=128,
-            epochs=epochs,
-            learning_rate=8e-4,
-            dropout_rate=0,
-            shuffle=True,
-            random_seed=42,
-            regularization=False,
-            reg_constant=5e-4
-        )
 
-    cnn.train(training_set=(X_train, y_train),
-            validation_set=(X_test, y_test),
-            initialize=True
+    test_batch = False
+    if test_batch:
+        batch_gen = batch_generator(X_test, y_test, batch_size=64, shuffle=False, random_seed=42)
+        batch_x, batch_y = next(batch_gen)
+        # for i, (batch_x, batch_y) in enumerate(batch_gen):
+        #     batch_normalization(batch_x)
+        
+
+    build_model = True
+    if build_model:    
+        epochs = 20
+        # regularization=False, learning_rate=8e-4 -> 66%
+        # regularization=True, learning_rate=2e-4 -> 64% 63%
+        # regularization=True, learning_rate=2e-4, reg_constant=5e-4 -> 65% 64%
+        cnn = CNN(
+                batchsize=64,
+                epochs=epochs,
+                learning_rate=8e-4,
+                dropout_rate=0,
+                shuffle=True,
+                random_seed=42,
+                regularization=False,
+                reg_constant=5e-4,
+                batch_normalization=True
             )
-    cnn.save(epoch=epochs)
 
-    cnn.load(epoch=epochs, path='model/')
+        cnn.train(training_set=(X_train, y_train),
+                validation_set=(X_test, y_test),
+                initialize=True
+                )
+        cnn.save(epoch=epochs)
+
+        cnn.load(epoch=epochs, path='model/')
 
     plot_metric = False
     if plot_metric:
@@ -405,6 +447,8 @@ if __name__ == "__main__":
         fig2.show()
         input("Type anything to exit...")
 
+    if build_model:
+        del cnn
 
-    del cnn
-
+if __name__ == "__main__":
+    main()
