@@ -8,8 +8,16 @@ from data_prepro import data_preprocess, label_generator
 
 
 class CNN():
-    def __init__(self, batchsize=64, epochs=10, learning_rate=1e-4,
-                dropout_rate=0.5, shuffle=True, random_seed=None, regularization=False):
+    def __init__(self,
+                batchsize=64,
+                epochs=10,
+                learning_rate=1e-4,
+                dropout_rate=0.5,
+                shuffle=True,
+                random_seed=None,
+                regularization=False,
+                reg_constant=0.01
+                ):
         
         np.random.seed(random_seed)
         self.batchsize = batchsize
@@ -22,6 +30,7 @@ class CNN():
         self.testing_loss = []
         self.testing_accuracy = []
         self.regularization = regularization
+        self.reg_constant = reg_constant
 
         g = tf.Graph()
         with g.as_default():
@@ -67,12 +76,7 @@ class CNN():
             name = 'cross_entropy_loss'
         )
         if self.regularization:
-            regularizer = tf.contrib.layers.l2_regularizer(scale=0.01)
-            # reg_variables = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-            # reg_variables = tf.get_collection(
-            #     tf.GraphKeys.GLOBAL_VARIABLES, 
-            #     scope='conv_1/_weights'
-            # )
+            regularizer = tf.contrib.layers.l2_regularizer(scale=self.reg_constant)
             reg_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
             reg_term = tf.contrib.layers.apply_regularization(regularizer, reg_variables)
             cross_entropy_loss += reg_term
@@ -261,15 +265,27 @@ def batch_generator(X, y, batch_size=64, shuffle=False, random_seed=None):
 
         
 if __name__ == "__main__":
-    X_train, name_train, y_train = label_generator("prepro_train")
+    aug = True
+    if aug:
+        X_train, name_train, y_train = label_generator("aug_train")
+    else:
+        X_train, name_train, y_train = label_generator("prepro_train")
     X_test, name_test, y_test = label_generator("prepro_test") # narray
     
     epochs = 20
-    cnn = CNN(random_seed=123, 
-            batchsize=64, 
+    # regularization=False, learning_rate=8e-4 -> 66%
+    # regularization=True, learning_rate=2e-4 -> 64% 63%
+    # regularization=True, learning_rate=2e-4, reg_constant=5e-4 -> 65% 64%
+    cnn = CNN(
+            batchsize=128,
             epochs=epochs,
-            regularization=True
-            )
+            learning_rate=8e-4,
+            dropout_rate=0,
+            shuffle=True,
+            random_seed=42,
+            regularization=False,
+            reg_constant=5e-4
+        )
 
     cnn.train(training_set=(X_train, y_train),
             validation_set=(X_test, y_test),
@@ -297,7 +313,7 @@ if __name__ == "__main__":
         plt.title('Accuracy')
         plt.legend()
 
-    plot_weights = True
+    plot_weights = False
     if plot_weights:
         # Obj: Plot weights in probability distribution
         # https://stackoverflow.com/questions/5498008/pylab-histdata-normed-1-normalization-seems-to-work-incorrect

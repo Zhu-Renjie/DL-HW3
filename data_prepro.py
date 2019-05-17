@@ -32,6 +32,14 @@ def data_preprocess(folder=None, root=None, aug=False):
             if syllable[0] == 'test':
                 # e.g. prepro_test\accordion_0.jpg
                 if aug:
+                    pass
+                else:
+                    newpath = "prepro_test" + "\\{}_{}.jpg".format(syllable[1], i)
+                    i += 1
+                    misc.imsave(newpath, face)
+
+            elif syllable[0] == 'train':
+                if aug:
                     newpath = "aug_train" + "\\{}_{}.jpg".format(syllable[1], i)
                     i += 1
                     misc.imsave(newpath, face)
@@ -48,14 +56,9 @@ def data_preprocess(folder=None, root=None, aug=False):
                     i += 1
                     misc.imsave(newpath, face2)
                 else:
-                    newpath = "prepro_test" + "\\{}_{}.jpg".format(syllable[1], i)
+                    newpath = "prepro_train" + "\\{}_{}.jpg".format(syllable[1], i)
                     i += 1
                     misc.imsave(newpath, face)
-
-            elif syllable[0] == 'train':
-                newpath = "prepro_train" + "\\{}_{}.jpg".format(syllable[1], i)
-                i += 1
-                misc.imsave(newpath, face)
             
             # plt.imshow(face,cmap=plt.cm.gray)
             # plt.show()
@@ -155,5 +158,5 @@ if __name__ == "__main__":
     #                     # noise=('Gaussian', 10),
     #                     noise=('Salt&Pepper', 0.01)
     #                 )
-    data_preprocess(root="test", aug=True)
+    data_preprocess(root="train", aug=True)
     pass
