@@ -315,7 +315,7 @@ def main(   name=None,
         # for i, (batch_x, batch_y) in enumerate(batch_gen):
         #     batch_normalization(batch_x)
         
-
+    tar = 25
     build_model = True
     if build_model:    
         epochs = 10
@@ -337,7 +337,6 @@ def main(   name=None,
         if predict:
             cnn.load(epoch=epochs, path='model/')
             batch = np.zeros((1, 128, 128))
-            tar = 20
             batch[0, :, :] = X_test[tar, :, :]
             preds = cnn.predict(batch)[0]
             true_label = np.where(y_test[tar,:]==1)[0][0]
@@ -433,7 +432,7 @@ def main(   name=None,
         # misc.imsave("Q4.jpg", face)
 
         # face = misc.imread("Q4.jpg")
-        face = X_test[20, :, :]
+        face = X_test[tar, :, :]
         # plt.imshow(face, cmap=plt.cm.gray)
         filter1 = cnn.reader.get_tensor('conv_1/_weights').squeeze() # (5, 5, 1, 32) -> (5, 5, 32)
         filter2 = cnn.reader.get_tensor('conv_2/_weights') # (5, 5, 32, 64)
